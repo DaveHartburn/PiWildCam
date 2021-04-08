@@ -1,0 +1,63 @@
+#!/bin/bash
+
+whoami
+
+# With diags mode as I had a lot of problems!
+
+if [ "x"$1 = "x-d" ] ; then
+  OUTFILE="apdiags.out"
+else
+  OUTFILE="/dev/null"
+fi
+
+echo ------------------------------------------------ > $OUTFILE
+date >> $OUTFILE
+
+ifconfig -a >> $OUTFILE
+
+# Switches to AP mode
+
+killall -9 dhclient
+killall -9 wpa_supplicant
+
+# Shutdown wlan0
+ifdown wlan0 2>&1 >> $OUTFILE
+
+echo "** wlan0 shutdown **" >> $OUTFILE
+
+sleep 5
+
+ifconfig -a >> $OUTFILE
+iwconfig >> $OUTFILE
+
+echo "** Performing ifup on wlan0 **" >> $OUTFILE
+
+# Annoyingly network manager will bring up interface again
+# Using the default interfaces file. Copy this over the top
+
+cp /etc/network/interfaces-wifi-ap /etc/network/interfaces
+
+# Bring up on AP network
+ifup -i /etc/network/interfaces-wifi-ap wlan0 2>&1 >> $OUTFILE
+
+sleep 15
+
+echo "** wlan0 ifconfig **" >> $OUTFILE
+ifconfig -a >> $OUTFILE
+
+echo "** Starting hostapd **" >> $OUTFILE
+
+# Start hostapd and DHCP server
+#service hostapd start  2>&1 >> $OUTFILE
+/usr/sbin/hostapd -dd /etc/hostapd/hostapd.conf 2>&1 >> $OUTFILE &
+
+sleep 15
+
+echo "** hostapd started **" >> $OUTFILE
+iwconfig >> $OUTFILE
+ifconfig -a >> $OUTFILE
+
+service isc-dhcp-server start 2>&1 >> $OUTFILE
+sleep 3
+ps -ef | grep dhcp >> $OUTFILE
+echo "** FINISHED **" >> $OUTFILE

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Shut down AP mode and attempt to rejoin default wireless network
+
+# Shutdown wlan0
+ifdown -i /etc/network/interfaces-wifi-ap wlan0
+cp /etc/network/interfaces-wifi-client /etc/network/interfaces
+
+# Stop AP services
+service hostapd stop
+service isc-dhcp-server stop
+
+# When silent is selected, just power down, do not attempt to connect
+# to an infrastructure network
+if [ "x"$1 == "xsilent" ] ; then
+  # Stop broadcasting ssid
+  iwconfig wlan0 mode Managed
+else
+  # Bring up wlan0
+  ifup wlan0
+fi
