@@ -1,0 +1,491 @@
+To do:
+- mail still
+- ftp/scp upload (config file?)
+- upload limit
+  - Consider a mail/upload last image. Check frequency in minutes
+
+- Long opts
+
+- Software motion detect
+  - Need illumination
+  
+- Help message
+
+- Style sheet
+- Dynamic options on web page
+
+----------------------------------------------
+
+
+
+
+Download latest Raspian image, unzip and dd to a SD card
+
+Mount /boot and cd to it. 'touch ssh' and copy in a valid wpa_supplicant.conf.
+
+Mount the root partition and change the hostname.
+
+Boot the pi, ssh in.
+sudo raspi-config
+3. Interface Options
+  P1 - Enable the camera
+6. Advanced Options
+  A1 - Expand Filesystem
+  A4 - Enable predictable network names - say No (this gives wlan0, eth0 etc)
+8 Update & Reboot
+
+
+Testing camera
+--------------
+
+Take a single picture with
+raspistill -o <outputfile>.jpg
+
+Trial and error for a dark birdbox give the following as the best result:
+raspistill -n -br 60 -co 40 -sa -40 -ex night -mm average -drc high -o <outputfile>.jpg
+
+Streaming
+---------
+
+Disable the red light by adding the following line to the end of /boot/config.txt:
+disable_camera_led=1
+A reboot will be required
+(On the Pi 2 you can turn off the power LED too - untested)
+
+(For details see http://www.linux-projects.org/modules/sections/index.php?op=viewarticle&artid=14)
+
+Using mjpg-streamer:
+Visit: https://github.com/cncjs/cncjs/wiki/Setup-Guide:-Raspberry-Pi-%7C-MJPEG-Streamer-Install-&-Setup-&-FFMpeg-Recording
+
+Follow the instructions for install & build
+
+To run:
+/usr/local/bin/mjpg_streamer -i "input_uvc.so -r 1280x720 -d /dev/video0 -f 30" -o "output_http.so -p 8080 -w /usr/local/share/mjpg-streamer/www"
+
+** There are tutorials about VLC, worth considering **
+
+Testing the PIR
+---------------
+(Ignore if not using a PIR, which you might not for a birdbox)
+
+Try:
+http://www.raspberrypi.org/learning/parent-detector/WORKSHEET.md
+
+Connect the PIR as follows
+Vcc - GPIO 2  (5v)
+Out - GPIO 23 (GPIO #11)
+GND - GPIO 6  (GND)
+
+Use the code on the screen to test
+
+Verify the python-picamera module is installed:
+sudo apt-get install python-picamera
+
+picamera documentation at http://picamera.readthedocs.org/en/release-1.8/
+
+The minimum for a still is:
+import picamera
+cam = picamera.PiCamera()
+cam.capture('/tmp/picamstill.jpg')
+
+
+For mp4 conversion:
+apt-get install gpac
+MP4Box -add /tmp/video.h264 /tmp/video.mp4
+
+
+Bright PI
+---------
+(Ignore if not using)
+
+Wire according to:
+http://www.pi-supply.com/bright-pi-v1-0-assembly-instructions/
+On the BrightPi, assume the pin with the black dot is 1
+BPi 1 - GPIO 6 (GND)
+BPi 2 - GPIO 4 (5v)
+BPi 3 - GPIO 5 (I2C SCL)
+BPi 4 - GPIO 3 (I2C SDA)
+
+For I2C setup, see https://learn.adafruit.com/adafruits-raspberry-pi-lesson-4-gpio-setup/configuring-i2c
+
+Add the following to the end of /etc/modules and reboot:
+i2c-bcm2708 
+i2c-dev
+
+    sudo apt-get install python-smbus
+    sudo apt-get install i2c-tools
+    
+vi /etc/modprobe.d/raspi-blacklist.conf 
+# blacklist spi and i2c by default (many users don't need them)
+
+#blacklist spi-bcm2708
+#blacklist i2c-bcm2708
+blacklist snd-soc-pcm512x
+blacklist snd-soc-wm8804
+
+reboot
+
+Note: A there was a change after the 3.18 kernel which stopped the smbus working
+as it previously did. See:
+https://www.raspberrypi.org/forums/viewtopic.php?t=100189&p=697310
+
+Add dtparam=i2c_arm=on to the end of /boot/config.txt
+Run raspi-config then under Advanced options use yes to enable I2C
+Reboot.
+
+LCD Screen
+----------
+(Ignore if not using a screen)
+
+https://learn.adafruit.com/drive-a-16x2-lcd-directly-with-a-raspberry-pi/python-code
+
+Software setup
+==============
+
+Copy the wildbin directory to /home/pi/wildbin
+chown root roothelp
+chmod +s roothelp
+
+mkdir /home/pi/wildcaps
+mkdir /home/pi/wildcaps/thumbs
+chown -R www-data wildcaps
+
+Running in AP mode
+------------------
+(Only do if needed - have you installed a switch button?)
+
+Following AdaFruit guide:
+https://learn.adafruit.com/setting-up-a-raspberry-pi-as-a-wifi-access-point/install-software
+But use the open hostapd.conf from
+http://elinux.org/RPI-Wireless-Hotspot
+
+apt-get install hostapd isc-dhcp-server
+
+cp dhcpd.conf /etc/dhcp
+cp hostapd.conf /etc/hostapd/
+cp interfaces* /etc/network
+cp rc.local /etc/rc.local
+
+wget http://adafruit-download.s3.amazonaws.com/adafruit_hostapd_14128.zip
+unzip adafruit_hostapd_14128.zip
+mv /usr/sbin/hostapd /usr/sbin/hostapd.ORIG
+mv hostapd /usr/sbin
+chmod 755 /usr/sbin/hostapd
+
+Web Server
+----------
+
+apt-get install lighttpd exiv2 libcgi-pm-perl
+It should start automatically.
+
+Browse to IP for a default landing page.
+
+Enable CGI:
+(http://bredsaal.dk/using-shell-scripts-for-cgi-in-lighttpd)
+# lighty-enable-mod cgi
+
+Edit /etc/lighttpd/lighttpd.conf. Add to the end:
+cgi.assign      = (
+	".pl"  => "/usr/bin/perl",
+	".py"  => "/usr/bin/python",
+	".sh"  => "/bin/bash",
+)
+Under index-file.names add index.pl:
+index-file.names            = ( "index.pl", "index.php", "ind....
+
+Restart:
+# /etc/init.d/lighttpd restart
+
+cd /var/www/html
+ln -s /home/pi/wildbin/wildcam.pl index.pl
+
+For the thumbnail viewer:
+ln -s /home/pi/wildcaps
+cd wildcaps
+ln -s /home/pi/wildbin/thumbnail.pl index.pl
+
+rm /var/www/html/index.lighttpd.html
+
+SMB Server (for managing images)
+--------------------------------
+
+This will set the directory as a open share. Not usually advised!
+
+As root
+apt install samba samba-common-bin acl
+chmod 777 /home/pi/wildcaps
+chgrp pi /home/pi/wildcaps
+chmod g+s /home/pi/wildcaps
+setfacl -d -m g::rwx /home/pi/wildcaps/
+setfacl -d -m o::rwx /home/pi/wildcaps/
+
+Test (as root):
+root@wildcam:/home/pi# echo deleteme > /home/pi/wildcaps/deleteme
+root@wildcam:/home/pi# ls -l /home/pi/wildcaps/deleteme
+-rw-rw-rw- 1 root pi 9 May 21 21:10 /home/pi/wildcaps/deleteme
+
+
+Edit /etc/samba/smb.conf
+To the end add:
+[wildcam]
+  comment = Wildcam Pictures
+  path = /home/pi/wildcaps
+  read only = no
+  browsable = yes
+  writable = yes
+  guest access ok = yes
+  create mask = 0777
+  directory mask = 0777
+  public = yes
+  guest ok = yes
+
+
+
+Motion (Software motion detect)
+-------------------------------
+
+sudo apt-get install motion
+
+Drivers not working:
+sudo rpi-update
+
+vi /etc/modules
+add:
+bcm2835-v4l2
+reboot
+/dev/video0 device appears after this update
+
+cd /home/pi
+mkdir motion
+chown motion:pi motion
+
+edit /etc/motion/motion.conf
+logfile /home/pi/wildcaps/motion.log
+width 640
+height 480
+framerate 60
+minimum_motion_frames 4
+max_movie_time 5   (set as experiment, don't want movies filling the disk)
+target_dir /home/pi/motion
+stream_localhost off   (was webcam_localhost)
+
+vi /etc/default/motion
+start_motion_daemon=yes
+
+
+--------------------------------------------------------------
+
+Software switches:
+(X means complete)
+X -w <sec>  : Seconds to wait before monitoring starts (default 0)
+X -f <path> : Folder path to store captures (default /home/pi/video)
+X -p <sec>  : Post capture delay before next video or still (default 1 second)
+-m v|s|t  : Capture mode - video, still or timelapse (default still)
+  ** Timelapse still to do
+X -c <sec>  : Number of seconds per video capture (default 10 seconds)
+X -s <num> : Number of stills to take on motion capture (default 1)
+-t <sec> : Number of seconds between timelapse images or still multishoot
+ 	   (default 300 for timelapse or 1 second for still)
+X -r XXXxYYY : Capture resolution (default 2592x1944)
+X -i w|i|n  : Illumination - white, IR or none. (default IR)
+  ** check all modes
+  ** add a both mode
+X -j o|m|f   : Illumination - Fixed on (o), off (f)  or only on motion detection (m default)
+-d p|i    : Motion detection method PIR or image analysis (p default)
+X -l <file> : Log file location (default, capture folder/wildcam.log)
+
+My test command (Stills and white):
+sudo ./wildcam.py -w 0 -m s -s 3 -r 640x480 -i w -j m -d p
+Video:
+./wildcam.py -w 0 -p 5 -m v -c 5 -r 640x480 -i w 
+
+Stills with IR on motion, takes 3:
+./wildcam.py -w 1 -m s -s 3 -t 1 -r 640x480 -i i -j m -d p
+
+Timelapse, 10 second delay
+./wildcam.py -w 1 -m t -t 10 -r 640x480
+
+
+
+To do:
+Thumbnails on web interface
+   - list number of captures
+More meaningful interface (longopts)
+mail still
+ftp/scp upload (config file?)
+upload limit
+high framerate mode
+debug feature
+log viewer
+smb connection
+webcam streaming
+
+************************************************************************
+
+Original wiring
+---------------
+
+LCD - Original
+--------------
+
+(GPIO gives PIN numbers rather than IO numbers)
+
+ 1 Vss - GPIO 6 (GND)
+ 2 Vdd - GPIO 4 (5v)
+ 3 V0  - GPIO 6 (GND) via 2.2k resistor
+ 4 RS  - GPIO 22 (GPIO #25)
+ 5 RW  - GPIO 6 (GND)
+ 6 E   - GPIO 18 (GPIO #24)
+ 7 D0  x
+ 8 D1  x
+ 9 D2  x
+10 D3  x
+11 D4  - GPIO 16 (GPIO #23)
+12 D5  - GPIO 11 (GPIO #17)
+13 D6  - GPIO 13 (GPIO #27)
+14 D7  - GPIO 15 (GPIO #22)
+15 A   - GPIO 24 (GPIO #8)
+16 K   - GPIO 6 (GND)
+
+Button
+------
+
+1 - GPIO 6 (GND)
+2 - GPIO 26 (GPIO #7) pulled to 5v with resistor
+
+*******************************************************************************************************
+
+Revised wiring
+--------------
+
+The revised wiring is designed for easier cabling with each component only connecting to one side of the GPIO.
+
+The button and the LCD go to the right (even numbers), with the BrightPi and PIR going to the left (odd numbers)
+LCD
+---
+
+(GPIO gives PIN numbers rather than IO numbers)
+
+(black)	 1 Vss - GPIO 6 (GND)
+(red)	 2 Vdd - GPIO 4 (5v)
+(white)	 3 V0  - GPIO 6 (GND) via 2.2k resistor
+(yellow) 4 RS  - GPIO 22 (GPIO #25)
+(blue)	 5 RW  - GPIO 6 (GND)
+(yellow) 6 E   - GPIO 18 (GPIO #24)
+	 7 D0  x
+	 8 D1  x
+	 9 D2  x
+	10 D3  x
+(blue)	11 D4  - GPIO 16 (GPIO #23)
+(white)	12 D5  - GPIO 8 (GPIO #14)		{ was GPIO 11 (GPIO #17) }
+(yellow)13 D6  - GPIO 10 (GPIO #15)		{ was GPIO 13 (GPIO #27) }
+(white)	14 D7  - GPIO 12 (GPIO #18)		{ was GPIO 15 (GPIO #22) }
+(red)	15 A   - GPIO 24 (GPIO #8)
+(black)	16 K   - GPIO 6 (GND)
+
+Button
+------
+
+1 - GPIO 6 (GND)
+2 - GPIO 26 (GPIO #7) pulled to 3.3v with resistor
+
+BrightPi
+--------
+
+BPi 1 - GPIO 6 (GND) (brown)
+BPi 2 - GPIO 4 (5v)  (red)
+BPi 3 - GPIO 5 (I2C SCL)  (orange)
+BPi 4 - GPIO 3 (I2C SDA)  (yellow)
+
+PIR
+---
+Vcc - GPIO 2  (5v)  (red)
+Out - GPIO 11 (GPIO #17)  (orange)
+GND - GPIO 6  (GND)       (brown)
+
+
+
+
+Line in LCD library changed to:
+    def __init__(self, pin_rs=25, pin_e=24, pins_db=[23, 14, 15, 18], GPIO=None):
+
+
+
+
+------------------------------------------------------------------------
+
+Running it as an AP
+-------------------
+
+Following AdaFruit guide:
+https://learn.adafruit.com/setting-up-a-raspberry-pi-as-a-wifi-access-point/install-software
+But use the open hostapd.conf from
+http://elinux.org/RPI-Wireless-Hotspot
+
+apt-get install hostapd isc-dhcp-server
+
+cp dhcpd.conf /etc/dhcp
+cp hostapd.conf /etc/hostapd/
+cp interfaces* /etc/network
+cp rc.local /etc/rc.local
+
+wget http://adafruit-download.s3.amazonaws.com/adafruit_hostapd_14128.zip
+unzip adafruit_hostapd_14128.zip
+mv /usr/sbin/hostapd /usr/sbin/hostapd.ORIG
+mv hostapd /usr/sbin
+chmod 755 /usr/sbin/hostapd
+
+Copy wildbin into /home/pi
+
+
+------------------------------------------------------------------------
+
+Motion detect with pi-timolo
+----------------------------
+
+https://github.com/pageauc/pi-timolo
+
+From any directory:
+curl -L https://raw.github.com/pageauc/pi-timolo/master/source/pi-timolo-install.sh | bash
+
+
+
+
+----------------------------------------------------------------------------
+
+Old stuff, no longer used
+=========================
+
+*** Start UV4l - There might be a better option, see below ***
+
+Type 
+curl http://www.linux-projects.org/listing/uv4l_repo/lrkey.asc | sudo apt-key add -
+
+Edit /etc/apt/sources.list and add
+deb http://www.linux-projects.org/listing/uv4l_repo/raspbian/ wheezy main
+
+apt-get update
+apt-get install uv4l uv4l-raspicam uv4l-raspicam-extras uv4l-server uv4l-uvc uv4l-xscreen uv4l-mjpegstream  uv4l-dummy
+
+Test the camera and streaming with:
+service uv4l_raspicam start
+
+Browse to http://<ip address>:8080
+Consider using a resolution of 640x480 for testing. It fits on the screen and gives better performance.
+Defaults can be set in /etc/uv4l/uv4l-raspicam.conf
+
+To prevent the service starting on boot:
+cd /etc/rcS.d
+mv S04uv4l_raspicam K04uv4l_raspicam
+
+Setting the same defaults as raspicamstill and dropping the frame rate to 5 fps gives a bright enough picture for a dark birdbox.
+
+*** End UV4L ******
+
+*** Alternate ***
+http://elinux.org/RPi-Cam-Web-Interface
+Follow the install instructions.
+When running install.sh, do not start by default and set the web port to be 8080, otherwise it will clash with the main interface screen.
+
+
+

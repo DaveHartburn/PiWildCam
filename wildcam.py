@@ -52,17 +52,6 @@ ilMode='m'		# Trigger illumination on motion or always on (om)
 mDetect='p'		# Motion detect on image analysis or PIR (pi)
 logFile=folderPath+"/wildcam.log"	# Log location
 
-# Initialize BrightPi and turn off LEDs
-# Set up bus and Bright Pi address
-bus=smbus.SMBus(1)
-bpi_address=0x70
-# Make sure all LEDs are off
-bus.write_byte_data(bpi_address, 0, ALL_OFF)
-# Push up gain
-bus.write_byte_data(bpi_address, 0x09, 0x0f)
-# Turn brightness to max
-for x in range(1, 9):
-	bus.write_byte_data(bpi_address, x, 0x3f)
 
 
 # *** Functions **************************************
@@ -70,7 +59,7 @@ def debug(str):
 	# Need to check for debugging mode here
 	print "DEBUG:"+str
 	logging.debug(str)
-	
+
 def checkArgs():
 	try:
 		opts, args = getopt.getopt(sys.argv[1:],"w:f:p:m:c:s:t:r:i:j:d:l:")
@@ -140,10 +129,20 @@ def getFilename():
 	# Assume it is not quick enough to be called more than once in the same second
 	txtTime=time.strftime("wildcam_%Y_%m_%d_%H%M%S")
 	return folderPath+"/"+txtTime
-	
+
 def doTimelapse():
-	print "Sorry, no timelapse function yet"
-	
+	exitState=0
+	cmdBase=RASPISTILL+CAMOPTS
+	while exitState==0:
+		baseFilename=getFilename()
+		debug("Saving "+baseFilename+".jpg")
+		cmd=RASPISTILL+CAMOPTS+" -w "+str(resX)+" -h "+str(resY)+" -o "+baseFilename+".jpg"
+		debug("Command :"+cmd)
+		os.system(cmd)
+		debug("Saved image, sleeping")
+		time.sleep(tlDelay)
+
+
 def doMotionDetect():
 	newMotion=0
 	exitState=0
@@ -158,7 +157,7 @@ def doMotionDetect():
 			if(newMotion==0):
 				# A new detect
 				newMotion=1
-				
+
 				# Do we turn on LEDs?
 				if(ilMode=="m") :
 					debug("Turning on LEDs")
@@ -169,10 +168,10 @@ def doMotionDetect():
 						bus.write_byte_data(bpi_address, 0, IR_LED)
 
 
-				
-				
+
+
 				debug("**********Taking picture*********")
-				
+
 				# Video or still?
 				if(capMode=='v'):
 					# Doing video
@@ -186,11 +185,11 @@ def doMotionDetect():
 					#cam.wait_recording(5)
 					#cam.stop_recording
 					#print "Sorry, can't do video"
-					
+
 					# Convert to MP4
 					os.system("MP4Box -add "+VIDTMP+" "+baseFilename+".mp4")
 					os.system("rm "+VIDTMP)
-					
+
 				else:
 					# Doing still(s)
 					for i in range (0, numStill):
@@ -203,7 +202,7 @@ def doMotionDetect():
 
 						# Delay between pictures
 						time.sleep(postCapDelay)
-				
+
 
 				# Do we turn off LEDs?
 				if(ilMode=="m") :
@@ -236,12 +235,27 @@ def doMotionDetect():
 # Parse command line arguments
 checkArgs()
 
+print("Illumination type is "+ilType)
+
+# Initialize BrightPi and turn off LEDs, if we have an illumination mode set
+if(ilType!='n'):
+	# Set up bus and Bright Pi address
+	bus=smbus.SMBus(1)
+	bpi_address=0x70
+	# Make sure all LEDs are off
+	bus.write_byte_data(bpi_address, 0, ALL_OFF)
+	# Push up gain
+	bus.write_byte_data(bpi_address, 0x09, 0x0f)
+	# Turn brightness to max
+	for x in range(1, 9):
+		bus.write_byte_data(bpi_address, x, 0x3f)
+
 # Does capture destination exist?
 if(os.path.isdir(folderPath)==False):
 	# No, throw error
 	print "Error: Capture folder "+folderPath+" does not exist"
 	sys.exit(1)
-	
+
 # Does logfile location exist?
 lastSlash=string.rfind(logFile, "/")
 # If -1 there is no path, directory is local so all is fine
@@ -277,7 +291,7 @@ if(ilMode=="o") :
 
 	if(ilType=="i"):
 		bus.write_byte_data(bpi_address, 0, IR_LED)
-		
+
 if(capMode=='t'):
 	doTimelapse()
 else:

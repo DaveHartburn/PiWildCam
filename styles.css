@@ -1,0 +1,53 @@
+html {
+  background-color: #f9f9f9;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  height: 100vh;
+}
+
+/* From: https://codepen.io/danzawadzki/pen/EgqKRr */
+input[type=button], input[type=submit], input[type=reset], button  {
+  background-color: #56baed;
+  border: none;
+  color: white;
+  padding: 5px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  text-transform: uppercase;
+  font-size: 13px;
+  -webkit-box-shadow: 0 10px 30px 0 rgba(95,186,233,0.4);
+  box-shadow: 0 10px 30px 0 rgba(95,186,233,0.4);
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+  margin: 5px;
+}
+
+table {
+  border: 3px solid #aaaadd;
+  border-collapse: collapse;
+}
+
+td.formTitle {
+  border: 1px solid #aaaadd;
+  background-color: #dddddd;
+  font-weight: bold;
+  padding: 5px;
+}
+
+td.formData {
+  border: 1px solid #aaaadd;
+  padding: 5px;
+}
+
+td.formAction {
+  background-color: #dddddd;
+  border: 1px solid #aaaadd;
+  padding: 5px;
+}
+
+.bold {
+  font-weight: bold;
+}
