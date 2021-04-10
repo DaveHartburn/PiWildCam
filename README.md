@@ -8,7 +8,10 @@ First commit is something that just about works, but needs a lot of fiddling. Or
 
 The web interface is awful!
 
+### Usage
+
 Based on a command line tool wildcam.py, the web interface provides a convenient way of using it.
+```
 Usage wildcam.py:
  -w <sec>  | --wait=<sec> : Seconds to wait before monitoring starts (default 0)
  -f <path> | --folder=<path> : Folder path to store captures (default /home/pi/video)
@@ -26,11 +29,32 @@ Usage wildcam.py:
  -l <file> | --log=<file>: Log file location (default, capture folder/wildcam.log)
  -h hhmm-hhmm | --hours=hhmm-hhmm : Only operate between times specified in hhmm format
     0000-2359 is 24x7
-
-Examples:
+```
+#### Examples:
 
 Timelapse, every 10 minutes with no illumination, 640x480 resolution. Useful for birdbox.
-./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off
+`./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off`
 
 Same timelapse again, only taking pictures between 8am and 5:30pm
-./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off ---hours=0800-1730
+`./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off ---hours=0800-1730`
+
+### To do:
+- [] Thumbnails on web interface
+   - [] list number of captures
+- [] More meaningful interface (longopts)
+- [] mail still
+- [] ftp/scp upload (config file?)
+- [] upload limit
+- [] high framerate mode
+- [] debug feature
+- [] log viewer
+- [] smb connection
+- [] webcam streaming
+- [] More dynamic web interface
+- [] Directory reshuffle
+- [] Do we still need a root helper? Drop if we can
+- [] Set up instructions
+- [] Blog post
+- [] Software motion detection
+- [] Instant picture take on web interface
+  - [] Allow changing of camera options?
