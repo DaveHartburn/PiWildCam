@@ -8,7 +8,7 @@ To do:
 
 - Software motion detect
   - Need illumination
-  
+
 - Help message
 
 - Style sheet
@@ -109,13 +109,13 @@ BPi 4 - GPIO 3 (I2C SDA)
 For I2C setup, see https://learn.adafruit.com/adafruits-raspberry-pi-lesson-4-gpio-setup/configuring-i2c
 
 Add the following to the end of /etc/modules and reboot:
-i2c-bcm2708 
+i2c-bcm2708
 i2c-dev
 
     sudo apt-get install python-smbus
     sudo apt-get install i2c-tools
-    
-vi /etc/modprobe.d/raspi-blacklist.conf 
+
+vi /etc/modprobe.d/raspi-blacklist.conf
 # blacklist spi and i2c by default (many users don't need them)
 
 #blacklist spi-bcm2708
@@ -280,8 +280,7 @@ Software switches:
 X -w <sec>  : Seconds to wait before monitoring starts (default 0)
 X -f <path> : Folder path to store captures (default /home/pi/video)
 X -p <sec>  : Post capture delay before next video or still (default 1 second)
--m v|s|t  : Capture mode - video, still or timelapse (default still)
-  ** Timelapse still to do
+X -m v|s|t  : Capture mode - video, still or timelapse (default still)
 X -c <sec>  : Number of seconds per video capture (default 10 seconds)
 X -s <num> : Number of stills to take on motion capture (default 1)
 -t <sec> : Number of seconds between timelapse images or still multishoot
@@ -297,7 +296,7 @@ X -l <file> : Log file location (default, capture folder/wildcam.log)
 My test command (Stills and white):
 sudo ./wildcam.py -w 0 -m s -s 3 -r 640x480 -i w -j m -d p
 Video:
-./wildcam.py -w 0 -p 5 -m v -c 5 -r 640x480 -i w 
+./wildcam.py -w 0 -p 5 -m v -c 5 -r 640x480 -i w
 
 Stills with IR on motion, takes 3:
 ./wildcam.py -w 1 -m s -s 3 -t 1 -r 640x480 -i i -j m -d p
@@ -458,7 +457,7 @@ Old stuff, no longer used
 
 *** Start UV4l - There might be a better option, see below ***
 
-Type 
+Type
 curl http://www.linux-projects.org/listing/uv4l_repo/lrkey.asc | sudo apt-key add -
 
 Edit /etc/apt/sources.list and add
@@ -486,6 +485,3 @@ Setting the same defaults as raspicamstill and dropping the frame rate to 5 fps 
 http://elinux.org/RPi-Cam-Web-Interface
 Follow the install instructions.
 When running install.sh, do not start by default and set the web port to be 8080, otherwise it will clash with the main interface screen.
-
-
-

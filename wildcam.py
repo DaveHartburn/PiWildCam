@@ -51,6 +51,8 @@ ilType='i'		# Illumination, white, IR or none (irn)
 ilMode='m'		# Trigger illumination on motion or always on (om)
 mDetect='p'		# Motion detect on image analysis or PIR (pi)
 logFile=folderPath+"/wildcam.log"	# Log location
+timeStart=0000  # Time of operating hours start
+timeEnd=2359    # Time of operating hours end
 
 
 
@@ -60,69 +62,111 @@ def debug(str):
 	print "DEBUG:"+str
 	logging.debug(str)
 
+def usage():
+	print("Usage wildcam.py:")
+	print("	 -w <sec>  | --wait=<sec> : Seconds to wait before monitoring starts (default 0)")
+	print("	 -f <path> | --folder=<path> : Folder path to store captures (default /home/pi/video)")
+	print("	 -p <sec>  | --postcap=<sec> : Post capture delay before next video or still (default 1 second)")
+	print("	 -m v|s|t  | --mode=vid|still|tl : Capture mode - video, still or timelapse (default still)")
+	print("	 -c <sec>  | --caplen=<sec> : Number of seconds per video capture (default 10 seconds)")
+	print("	 -s <num>  | --stills=<num> : Number of stills to take on motion capture (default 1)")
+	print("	 -t <sec>  | --time=<sec> : Number of seconds between timelapse images or still multishoot")
+	print("	 	   (default 300 for timelapse or 1 second for still)")
+	print("	 -r XXXxYYY | --res=XXXXxYYYY: Capture resolution (default 2592x1944)")
+	print("	 -i w|i|n  | --iltype=white|ir|none : Illumination type - white, IR or none. (default IR)")
+	print("	 -j o|m|f  | --ilmode=on|off|motion :")
+	print("	    Illumination - Fixed on (o), off (f)  or only on motion detection (m default)")
+	print("	 -d p|i    | --detect=pir|image  : Motion detection method PIR or image analysis (p default)")
+	print("	 -l <file> | --log=<file>: Log file location (default, capture folder/wildcam.log)")
+	print("	 -h hhmm-hhmm | --hours=hhmm-hhmm : Only operate between times specified in hhmm format")
+	print("	    0000-2359 is 24x7")
+
 def checkArgs():
 	try:
-		opts, args = getopt.getopt(sys.argv[1:],"w:f:p:m:c:s:t:r:i:j:d:l:")
+		opts, args = getopt.getopt(sys.argv[1:],"w:f:p:m:c:s:t:r:i:j:d:l:h:",
+		  ['wait=', 'folder=', 'postcap=', 'mode=', 'caplen=', 'stills=',
+		  'time=', 'res=', 'iltype=', 'ilmode=', 'detect=', 'log=', 'hours=', 'help'])
 	except getopt.GetoptError:
-		print "Usage: sdfsdf sd fsdf sd"
+		usage()
 		sys.exit(2)
 	for opt, arg in opts:
-		if opt in ("-w"):
+		if opt in ["-w", "--wait"]:
 			global startWaitTime
 			startWaitTime=int(arg)
-		elif opt in ("-f"):
+		elif opt in ["-f", "--folder"]:
 			global folderPath
 			folderPath=arg
-		elif opt in ("-p"):
+		elif opt in ["-p", "--postcap"]:
 			global postCapDelay
 			postCapDelay=int(arg)
-		elif opt in ("-m"):
+		elif opt in ["-m", "--mode"]:
 			# Can be v, s or t
 			global capMode
-			if(arg=="v" or arg=="s" or arg=="t"):
-				capMode=arg
+			if(arg in ['v','s','t','vid','still','tl']):
+				# Only take the first character
+				capMode=arg[0]
 			else:
 				print "Invalid capture mode", arg
 				sys.exit(1)
-		elif opt in ("-c"):
+		elif opt in ["-c", "--caplen"]:
 			global vidCapTime
 			vidCapTime=int(arg)
-		elif opt in ("-s"):
+			# print("Video cap time = "+str(vidCapTime))
+		elif opt in ["-s", "--stills"]:
 			global numStill
 			numStill=int(arg)
-		elif opt in ("-t"):
+			#print("Number of stills is "+str(numStill))
+		elif opt in ["-t", "--time"]:
 			global tlDelay
 			tlDelay=int(arg)
-		elif opt in ("-r"):
+			#print("Time delay = "+str(tlDelay))
+		elif opt in ["-r", "--res"]:
 			global resX
 			global resY
 			tmp=arg.split("x")
 			resX=int(tmp[0])
 			resY=int(tmp[1])
-		elif opt in ("-i"):
+			#print("Resolution=",str(resX),str(resY))
+		elif opt in ["-i", "--iltype"]:
 			global ilType
-			if(arg=="w" or arg=="i" or arg=="n"):
-				ilType=arg
+			if(arg in ['w', 'i', 'n', 'white', 'ir', 'none']):
+				ilType=arg[0]
 			else:
 				print "Invalid illumination type (-i w|i|n)", arg
 				sys.exit(1)
-		elif opt in ("-j"):
+			#print("Illumination type="+ilType)
+		elif opt in ["-j", "--ilmode"]:
 			global ilMode
-			if(arg=="o" or arg=="m" or arg=="f"):
-				ilMode=arg
+			if(arg in ['o', 'f', 'm', 'on', 'off', 'motion']):
+				if(arg=='off'):
+					ilMode='f'
+				else:
+					ilMode=arg[0]
 			else:
 				print "Invalid illumination mode (-j o|m|f)", arg
 				sys.exit(1)
-		elif opt in ("-d"):
+			#print("Illumination mode = "+ilMode)
+		elif opt in ["-d", "--detect"]:
 			global mDetect
-			if(arg=="p" or arg=="i"):
-				mDetect=arg
+			if(arg in ['p', 'i', 'pir', 'image']):
+				mDetect=arg[0]
 			else:
 				print "Invalid motion detect mode (-d p|i)", arg
 				sys.exit(1)
-		elif opt in ("-l"):
+			#print("Detection = "+mDetect)
+		elif opt in ["-l","--log"]:
 			global logFile
 			logFile=arg
+			#print("Logging to "+logFile)
+		elif opt in ["-h", "--hours"]:
+			global timeStart, timeEnd
+			tmp=arg.split("-")
+			timeStart=int(tmp[0])
+			timeEnd=int(tmp[1])
+			#print("Time start & end = ", timeStart, timeEnd)
+		elif opt=="--help":
+			usage()
+			sys.exit(0)
 
 def getFilename():
 	# Return a base filename (without extension) based on the time
@@ -130,16 +174,30 @@ def getFilename():
 	txtTime=time.strftime("wildcam_%Y_%m_%d_%H%M%S")
 	return folderPath+"/"+txtTime
 
-def doTimelapse():
-	exitState=0
-	cmdBase=RASPISTILL+CAMOPTS
-	while exitState==0:
+def takePicture():
+	# Takes a single snap
+	# ***** Add illumination control *****
+
+	# Get time in hhmm format
+	curTime=time.localtime()[3]*100+time.localtime()[4]
+	#print("curTime, timeStart, timeEnd", curTime, timeStart, timeEnd)
+
+	# Take picture if valid
+	if(curTime>=timeStart and curTime<=timeEnd):
+		cmdBase=RASPISTILL+CAMOPTS
 		baseFilename=getFilename()
 		debug("Saving "+baseFilename+".jpg")
 		cmd=RASPISTILL+CAMOPTS+" -w "+str(resX)+" -h "+str(resY)+" -o "+baseFilename+".jpg"
 		debug("Command :"+cmd)
 		os.system(cmd)
-		debug("Saved image, sleeping")
+	else:
+		debug("Out of time period, no picture taken")
+
+def doTimelapse():
+	exitState=0
+	while exitState==0:
+		takePicture()
+		debug("Timelapse - sleeping")
 		time.sleep(tlDelay)
 
 
@@ -148,7 +206,6 @@ def doMotionDetect():
 	exitState=0
 
 	# Loop until something sets exitstate to 1
-	cmdBase=RASPISTILL+CAMOPTS
 	while exitState==0:
 		# Just doing PIR detection for now
 		pirInput = GPIO.input(pirPin)
@@ -193,13 +250,7 @@ def doMotionDetect():
 				else:
 					# Doing still(s)
 					for i in range (0, numStill):
-						baseFilename=getFilename()
-						debug("Saving "+baseFilename+".jpg")
-						cmd=RASPISTILL+CAMOPTS+" -w "+str(resX)+" -h "+str(resY)+" -o "+baseFilename+".jpg"
-						debug("Command :"+cmd)
-						os.system(cmd)
-						debug("Saved image")
-
+						takePIcture()
 						# Delay between pictures
 						time.sleep(postCapDelay)
 
