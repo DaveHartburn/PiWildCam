@@ -1,6 +1,6 @@
 # PiWildCam
 
-Early commit. A wildlife camera for the Raspberry Pi. It can sit as either a Pi and a camera module in a nextbox, or in a stand alone enclosure as a trailcam, with LCD screen for status and a PIR.
+Early commit. A wildlife camera for the Raspberry Pi. It can sit as either a Pi and a camera module in a nextbox, or in a stand alone enclosure as a trailcam, with LCD screen for status and a PIR. Uses BrightPi for IR/White light illumination.
 
 Full details and setup instructions pending.
 
@@ -36,7 +36,7 @@ Timelapse, every 10 minutes with no illumination, 640x480 resolution. Useful for
 `./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off`
 
 Same timelapse again, only taking pictures between 8am and 5:30pm
-`./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off ---hours=0800-1730`
+`./wildcam.py --folder=/home/pi/wildcaps --mode=tl --time=600 --res=640x480 --iltype=none --ilmode=off --hours=0800-1730`
 
 ### To do:
 - [] Thumbnails on web interface
@@ -58,3 +58,5 @@ Same timelapse again, only taking pictures between 8am and 5:30pm
 - [] Software motion detection
 - [] Instant picture take on web interface
   - [] Allow changing of camera options?
+- [] Is hotspot mode still the best way to do this?, improve
+- [] Remove table from web interface and use flexbox

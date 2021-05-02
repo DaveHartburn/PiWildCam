@@ -6,8 +6,10 @@
 use strict;
 use warnings;
 use CGI;
+use Proc::Daemon;
 
 my $apssid="wildcam";
+my $binpath="/home/pi/wildbin";
 my $roothelp="/home/pi/wildbin/roothelp";
 my $logfile="/home/pi/wildcaps/wildcam.log";
 
@@ -21,7 +23,9 @@ print "Content-type: text/html\n\n";
 
 print "<html><head>\n";
 print "<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>\n";
-print "<link rel='STYLESHEET' href='styles.css' type='text/css'></head><body>\n";
+print "<link rel='STYLESHEET' href='styles.css' type='text/css'>\n";
+print "<script src='webgui.js'></script>\n";
+print "</head><body>\n";
 
 # Intercept log file view
 if($myurl =~ /viewlog/) {
@@ -40,7 +44,7 @@ if($myurl =~ /viewlog/) {
 # Do we need to process any POST data?
 if($ENV{CONTENT_LENGTH}!=0) {
 	# Set refresh in 5 seconds and reload
-	print "<META HTTP-EQUIV=\"refresh\" CONTENT=\"5; URL=$myurl\">\n";
+	#print "<META HTTP-EQUIV=\"refresh\" CONTENT=\"5; URL=$myurl\">\n";
 	print "<title>Processing</title></head>\n";
 	print "<h1>Processing input, please wait. Debugging messages below</h1>\n";
 	process_input();
@@ -156,12 +160,12 @@ if($ENV{CONTENT_LENGTH}!=0) {
 	print "</body>\n";
 	print "</html>\n";
 }
-exit;
+exit(0);
 
 # ***************************************************
 
 sub process_fork {
-	# Process the inputs in the background
+	# Process the inputs in the background ** Not actually called, can likely delete this! **
 	my $pid = fork;
 	return if $pid;	# In the parent
 	process_input();
@@ -218,8 +222,34 @@ sub process_input {
 		# No else, just ignore whoever has been messing
 	}
 	if($var eq "Run Wildcam") {
+		# Problems starting this, try logging to file
+		open(FH, '>', '/tmp/wildcamstart.log') or die $!;
+		print FH "Trying to start wildcam\n";
 		my $cam=launch_wildcam(%vars);
-		$cmdout=`$roothelp wildcam $cam`;
+		print FH "Launching with cam options $cam\n";
+		my $cmd="$roothelp wildcam $cam 2>&1 1>/dev/null &";
+		print FH "Executing command: $cmd\n";
+		print "<pre>Running: $cmd</pre><br>\n";
+		#$cmdout=`$cmd`;
+		$cmdout='';
+#		my $child_pid = fork();
+#		if ( ! defined( $child_pid )) {
+#		    warn "fork failed\n";
+#		}
+#		elsif ( $child_pid == 0 ) { # true for the child process
+#			require POSIX;
+#			POSIX::setsid();
+#		 	exec($cmd);
+#		}
+		# Use Proc::Daemon to background the process
+		my $daemon = Proc::Daemon->new(work_dir => $binpath);
+		my $childPid = $daemon->Init( {
+		    exec_command => $cmd,
+		  });
+
+		print("<p>Started wildcam with PID = $childPid</p>\n");
+		print FH "Started wildcam with PID = $childPid\n";
+		close(FH);
 	}
 	if($var eq "Terminate Wildcam") {
 		$cmdout=`$roothelp killwildcam`;
@@ -231,50 +261,62 @@ sub process_input {
 }
 
 sub start_cam_opts {
-	# Formatted a table in a table - yuk
+	# Formatted a table in a table - change to flexbox
 	print "<table>\n";
 
+	print "<tr><td>Capture mode:</td>\n";
+	print "<td><select onChange='updateVisibleFields();' id='capmode' name='capmode'>\n";
+	print "<option value='s'>Stills</option>\n";
+	print "<option value='v'>Video</option><option value='t'>Timelapse</option>\n";
+	print "</select></td></tr>\n";
+
+	# Dynamic rows have a class name. Initially  stillsOnly and bothMotion are
+	# the only two visible. Javascript uses these class names to disable/enable
+	# visibility.
+
+	# Only in stills mode
+	print "<tr class='stillOnly'><td>Number of stills on motion detect: ";
+	  print "<br><i>Will multishoot a number of frames</i></td>\n";
+		print "<td><input type='text' name='numstill' size=10 value='3'></td></tr>\n";
+		print "<tr class='stillOnly'><td>Seconds between multishoot frames: </td>\n";
+		print "<td><input type='text' name='tsec' size=10 value='1'></td></tr>\n";
+
+	# Only video mode
+	print "<tr class='videoOnly'><td>Seconds per video capture: </td>\n";
+	print "<td><input type='text' name='capsec' size=10 value='10'></td></tr>\n";
+
+	# Both motion detect modes
+	print "<tr class='bothMotion'><td>Post capture delay:<br><i>Time to wait idle after each still or video</i></td>\n";
+	print "<td><input type='text' name='postcap' value='1'></td></tr>\n";
+	print "<tr class='bothMotion'><td>Motion detect method:</td>\n";
+	print "<td><select name='motion'><option value='p'>PIR</option>\n";
+	print "<option value='i'>Software</option>\n";
+	print "</select></td></tr>\n";
+
+	# Timelapse mode
+	print "<tr class='timelapse'><td>Seconds between timelapse frames: </td>\n";
+	print "<td><input type='text' name='tlsec' size=10 value='300'></td></tr>\n";
+
+	# Options that are the same, regardless of mode - no class set
 	print "<tr><td>Wait before monitoring starts (sec): </td>\n";
 	print "<td><input type='text' name='waitsec' size=10 value='3'></td></tr>\n";
 	print "<tr><td>Folder to store images:</td>\n";
 	print "<td><input type='text' name='folder' value='/home/pi/wildcaps'></td></tr>\n";
-	print "<tr><td>Post capture delay:<br><i>Time to wait idle after each still or video</i></td>\n";
-	print "<td><input type='text' name='postcap' value='1'></td></tr>\n";
-
-	print "<tr><td>Capture mode:</td>\n";
-	print "<td><select name='capmode'><option value='s'>Stills</option>\n";
-	print "<option value='v'>Video</option><option value='t'>Timelapse</option>\n";
-	print "</select></td></tr>\n";
-
-	print "<tr><td>Seconds per video capture: </td>\n";
-	print "<td><input type='text' name='capsec' size=10 value='10'></td></tr>\n";
-	print "<tr><td>Number of stills on motion detect: ";
-	  print "<br><i>Will multishoot a number of frames</i></td>\n";
-	print "<td><input type='text' name='numstill' size=10 value='3'></td></tr>\n";
-	print "<tr><td>Seconds between timelapse or still multishoot: </td>\n";
-	print "<td><input type='text' name='tsec' size=10 value='1'></td></tr>\n";
 
 	print "<tr><td>Capture resolution</td>\n";
-	#print "<td><input type='text' name='resolution' value='640x480'></td></tr>\n";
 	print "<td><select name='resolution'><option value='640x480'>640x480</option>\n";
 	print "<option value='1296x792'>1296x792</option>\n";
 	print "<option value='1920x1080'>1920x1080</option>\n";
 	print "<option value='2592x1944'>2592x1944</option>\n";
 	print "</select></td></tr>\n";
 
-	print "<tr><td>Illumination:</td>\n";
-	print "<td><select name='illumin'><option value='i'>IR</option>\n";
-	print "<option value='w'>White</option><option value='n'>None</option>\n";
-	print "</select></td></tr>\n";
-
 	print "<tr><td>Illumination mode:</td>\n";
-	print "<td><select name='illmode'><option value='m'>On motion</option>\n";
+	print "<td><select name='illmode'><option value='m'>On capture</option>\n";
 	print "<option value='o'>Always on</option><option value='f'>Always off</option>\n";
 	print "</select></td></tr>\n";
-
-	print "<tr><td>Motion detect method:</td>\n";
-	print "<td><select name='motion'><option value='p'>PIR</option>\n";
-	print "<option value='i'>Software</option>\n";
+	print "<tr><td>Illumination:</td>\n";
+	print "<td><select name='illumin'><option value='n'>None</option>\n";
+	print "<option value='w'>White</option><option value='i'>IR</option>\n";
 	print "</select></td></tr>\n";
 
 	print "</table>\n";
@@ -284,9 +326,30 @@ sub start_cam_opts {
 sub launch_wildcam {
 	my (%v) = @_;
 
-	my $camopts="-w $v{'waitsec'} -f $v{'folder'} -p $v{'postcap'} -m $v{'capmode'} ";
-	$camopts.="-c $v{'capsec'} -s $v{'numstill'} -t $v{'tsec'} -r $v{'resolution'} ";
-	$camopts.="-i $v{'illumin'} -j $v{'illmode'} -d $v{'motion'}";
+	my $mode=$v{'capmode'};
+	my $camopts;
+
+	print("Mode is $mode<br>\n");
+
+	if($mode eq 's') {
+		print "Gonna do a stills mode";
+		$camopts="--wait=$v{'waitsec'} --folder=$v{'folder'} --postcap=$v{'postcap'} --mode=$v{'capmode'} ";
+		$camopts.="--caplen=$v{'capsec'} --stills=$v{'numstill'} --time=$v{'tsec'} --res=$v{'resolution'} ";
+		$camopts.="--iltype=$v{'illumin'} --ilmode=$v{'illmode'} --detect=$v{'motion'}";
+	} elsif($mode eq 'v') {
+		print "Video killed the radio star";
+		$camopts="--wait=$v{'waitsec'} --folder=$v{'folder'} --postcap=$v{'postcap'} --mode=$v{'capmode'} ";
+		$camopts.="--caplen=$v{'capsec'} --stills=$v{'numstill'} --time=$v{'tsec'} --res=$v{'resolution'} ";
+		$camopts.="--iltype=$v{'illumin'} --ilmode=$v{'illmode'} --detect=$v{'motion'}";
+	} elsif($mode eq 't') {
+		print "Lets do the timelapse again";
+		$camopts="--wait=$v{'waitsec'} --folder=$v{'folder'} --mode=$v{'capmode'} ";
+		$camopts.="--time=$v{'tlsec'} --res=$v{'resolution'} ";
+		$camopts.="--iltype=$v{'illumin'} --ilmode=$v{'illmode'}";
+	} else {
+		print "Error, no such mode";
+		return "";
+	}
 
 	print "<pre>Cam options $camopts</pre>\n";
 

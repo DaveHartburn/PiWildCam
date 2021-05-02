@@ -18,8 +18,6 @@ input[type=button], input[type=submit], input[type=reset], button  {
   display: inline-block;
   text-transform: uppercase;
   font-size: 13px;
-  -webkit-box-shadow: 0 10px 30px 0 rgba(95,186,233,0.4);
-  box-shadow: 0 10px 30px 0 rgba(95,186,233,0.4);
   -webkit-border-radius: 5px 5px 5px 5px;
   border-radius: 5px 5px 5px 5px;
   margin: 5px;
@@ -50,4 +48,18 @@ td.formAction {
 
 .bold {
   font-weight: bold;
+}
+
+/* Classes for launch form */
+.stillOnly {
+  display: table-row;
+}
+.videoOnly {
+  display: none;
+}
+.bothMotion {
+  display: table-row;
+}
+.timelapse {
+  display: none;
 }
